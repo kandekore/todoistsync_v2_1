@@ -28,9 +28,22 @@ class TodoistClient
         }
 
         $response = curl_exec($ch);
-        curl_close($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    
+    // Log errors to WHMCS Module Log
+    if (curl_errno($ch) || $httpCode >= 400) {
+        logModuleCall(
+            'todoistsync', 
+            $method . ' ' . $endpoint, 
+            json_encode($data), 
+            $response, 
+            null, 
+            [$this->token] // Redact token from logs
+        );
+    }
 
-        return json_decode($response, true);
+    curl_close($ch);
+    return json_decode($response, true);
     }
 
     public function createTask($data) { return $this->request("POST", "tasks", $data); }
