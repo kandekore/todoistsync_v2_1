@@ -1,26 +1,23 @@
 <?php
+if (!defined("WHMCS")) die("Access Denied");
 
-require_once __DIR__ . '/lib/SyncService.php';
+function todoistsync_safe_sync($vars) {
+    // Determine the ID from WHMCS variables
+    $todoId = $vars['todoid'] ?? $vars['id'];
 
-add_hook('AdminToDoAdd', 1, function($vars) {
-    (new TodoistSyncService())->syncFromWhmcs($vars['todoid']);
-});
-
-add_hook('AdminToDoEdit', 1, function($vars) {
-    (new TodoistSyncService())->syncFromWhmcs($vars['todoid']);
-});
-
-add_hook('AdminToDoStatusUpdate', 1, function($vars) {
-    (new TodoistSyncService())->syncFromWhmcs($vars['todoid']);
-});
-
-add_hook('AdminToDoDelete', 1, function($vars) {
-    $mapping = \WHMCS\Database\Capsule::table('mod_todoistsync_map')
-        ->where('whmcs_todo_id', $vars['todoid'])
-        ->first();
-
-    if ($mapping) {
-        $sync = new TodoistSyncService();
-        $sync->closeTodoistTask($mapping->todoist_task_id);
+    if ($todoId) {
+        $libPath = __DIR__ . '/lib/SyncService.php';
+        if (file_exists($libPath)) {
+            require_once $libPath;
+            if (class_exists('TodoistSyncService')) {
+                $sync = new TodoistSyncService();
+                $sync->syncFromWhmcs($todoId);
+            }
+        }
     }
-});
+}
+
+// Re-attach to the standard WHMCS hook points
+add_hook('AdminToDoAdd', 1, 'todoistsync_safe_sync');
+add_hook('AdminToDoEdit', 1, 'todoistsync_safe_sync');
+add_hook('AdminToDoStatusUpdate', 1, 'todoistsync_safe_sync');

@@ -3,7 +3,8 @@
 class TodoistClient
 {
     private $token;
-    private $base = "https://api.todoist.com/rest/v2/";
+    // Updated to the new unified v1 API prefix as required by Todoist
+    private $base = "https://api.todoist.com/api/v1/";
 
     public function __construct($token)
     {
@@ -12,7 +13,8 @@ class TodoistClient
 
     private function request($method, $endpoint, $data = null)
     {
-        $ch = curl_init($this->base . $endpoint);
+        $url = $this->base . $endpoint;
+        $ch = curl_init($url);
 
         $headers = [
             "Authorization: Bearer {$this->token}",
@@ -28,22 +30,22 @@ class TodoistClient
         }
 
         $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    
-    // Log errors to WHMCS Module Log
-    if (curl_errno($ch) || $httpCode >= 400) {
-        logModuleCall(
-            'todoistsync', 
-            $method . ' ' . $endpoint, 
-            json_encode($data), 
-            $response, 
-            null, 
-            [$this->token] // Redact token from logs
-        );
-    }
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        
+        // Log errors to WHMCS Module Log for visibility
+        if (curl_errno($ch) || $httpCode >= 400) {
+            logModuleCall(
+                'todoistsync', 
+                $method . ' ' . $endpoint, 
+                json_encode(['url' => $url, 'payload' => $data]), 
+                $response, 
+                null, 
+                [$this->token]
+            );
+        }
 
-    curl_close($ch);
-    return json_decode($response, true);
+        curl_close($ch);
+        return json_decode($response, true);
     }
 
     public function createTask($data) { return $this->request("POST", "tasks", $data); }

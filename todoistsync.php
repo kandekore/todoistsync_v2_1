@@ -9,7 +9,7 @@ function todoistsync_config()
     return [
         'name' => 'Todoist Sync',
         'description' => 'WHMCS To-Do → Todoist controlled mirror sync.',
-        'version' => '2.1.0',
+        'version' => '2.1.1',
         'author' => 'Host Dada',
         'fields' => [
             'api_token' => [
