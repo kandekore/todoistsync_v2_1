@@ -2,8 +2,7 @@
 use WHMCS\Database\Capsule;
 
 if (!class_exists('TodoistSyncService')) {
-
-    require_once __DIR__ . '/TodoistClient.php';
+    require_once __DIR__ . '/TodoistClient_v1.php';
 
     class TodoistSyncService {
         private $client;
@@ -22,24 +21,19 @@ if (!class_exists('TodoistSyncService')) {
             $task = Capsule::table('tbltodolist')->where('id', $todoId)->first();
             if (!$task) return;
 
-            // Improved hash includes status but allows sync if status is 'Completed'
-            $hash = hash('sha256', $task->title.$task->description.$task->duedate.$task->status.$task->admin);
-            
             $mapping = Capsule::table('mod_todoistsync_map')->where('whmcs_todo_id', $todoId)->first();
+
+            // Handle completion BEFORE checking the hash
+            if ($task->status === 'Completed' && $mapping) {
+                $this->client->closeTask($mapping->todoist_task_id);
+            }
+
+            // Generate hash to see if an update is needed
+            $hash = hash('sha256', $task->title.$task->description.$task->duedate.$task->status.$task->admin);
             if ($mapping && $mapping->last_hash === $hash) return;
 
-            // Check if admin is a username OR an ID to get the correct Admin ID
-            $admin = Capsule::table('tbladmins')
-                ->where('username', $task->admin)
-                ->orWhere('id', $task->admin)
-                ->first();
-
-            $todoistUserId = null;
-            if ($admin) {
-                $todoistUserId = Capsule::table('mod_todoistsync_admin_map')
-                    ->where('whmcs_admin_id', $admin->id)
-                    ->value('todoist_user_id');
-            }
+            $admin = Capsule::table('tbladmins')->where('username', $task->admin)->orWhere('id', $task->admin)->first();
+            $todoistUserId = $admin ? Capsule::table('mod_todoistsync_admin_map')->where('whmcs_admin_id', $admin->id)->value('todoist_user_id') : null;
 
             $payload = [
                 "content" => $task->title,
@@ -49,6 +43,7 @@ if (!class_exists('TodoistSyncService')) {
             ];
 
             if (!$mapping) {
+                if ($task->status === 'Completed') return; 
                 $created = $this->client->createTask($payload);
                 if (!empty($created['id'])) {
                     Capsule::table('mod_todoistsync_map')->insert([
@@ -59,27 +54,20 @@ if (!class_exists('TodoistSyncService')) {
                     ]);
                 }
             } else {
-                $this->client->updateTask($mapping->todoist_task_id, $payload);
-                
-                // Logic to close task in Todoist if WHMCS is marked completed
-                if ($task->status === 'Completed') {
-                    $this->client->closeTask($mapping->todoist_task_id);
+                if ($task->status !== 'Completed') {
+                    $this->client->updateTask($mapping->todoist_task_id, $payload);
                 }
-
-                Capsule::table('mod_todoistsync_map')
-                    ->where('whmcs_todo_id', $todoId)
-                    ->update([
-                        'last_hash' => $hash,
-                        'last_sync' => date('Y-m-d H:i:s')
-                    ]);
+                
+                Capsule::table('mod_todoistsync_map')->where('whmcs_todo_id', $todoId)->update([
+                    'last_hash' => $hash,
+                    'last_sync' => date('Y-m-d H:i:s')
+                ]);
             }
         }
 
-        public function closeTodoistTask($todoistId) {
-            $this->client->closeTask($todoistId);
-        }
-
+    
         public function completeFromTodoist($todoistId) {
+            // Prevent recursive loops
             if (!defined('TODOIST_SYNC_ORIGIN')) define('TODOIST_SYNC_ORIGIN', true);
 
             $mapping = Capsule::table('mod_todoistsync_map')->where('todoist_task_id', $todoistId)->first();
@@ -89,7 +77,6 @@ if (!class_exists('TodoistSyncService')) {
                 ->where('id', $mapping->whmcs_todo_id)
                 ->update(['status' => 'Completed']);
                 
-            // Log the action for debugging
             logModuleCall('todoistsync', 'webhook_complete', $todoistId, "Marked WHMCS ID {$mapping->whmcs_todo_id} as Completed");
         }
     }

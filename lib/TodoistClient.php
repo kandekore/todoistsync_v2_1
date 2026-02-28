@@ -3,7 +3,6 @@
 class TodoistClient
 {
     private $token;
-    // Updated to the new unified v1 API prefix as required by Todoist
     private $base = "https://api.todoist.com/api/v1/";
 
     public function __construct($token)
@@ -32,17 +31,15 @@ class TodoistClient
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         
-        // Log errors to WHMCS Module Log for visibility
-        if (curl_errno($ch) || $httpCode >= 400) {
-            logModuleCall(
-                'todoistsync', 
-                $method . ' ' . $endpoint, 
-                json_encode(['url' => $url, 'payload' => $data]), 
-                $response, 
-                null, 
-                [$this->token]
-            );
-        }
+        // Log ALL calls to the WHMCS Module Log so you can verify "Close" signals
+        logModuleCall(
+            'todoistsync', 
+            $method . ' ' . $endpoint, 
+            json_encode(['url' => $url, 'payload' => $data]), 
+            $response, 
+            null, 
+            [$this->token]
+        );
 
         curl_close($ch);
         return json_decode($response, true);
