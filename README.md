@@ -25,7 +25,7 @@ Mirrors your WHMCS To-Do list into Todoist in real time. Tasks are created, upda
 ## File Structure
 
 ```
-todoistsync_v2_1/
+todoistsync/
 ├── todoistsync.php       # Addon entry point — config, activation, admin UI
 ├── hooks.php             # WHMCS event hooks + cron hook
 ├── webhook.php           # Todoist webhook receiver
@@ -50,9 +50,9 @@ Created automatically on module activation:
 
 ## Installation
 
-1. **Upload the module** — Copy the `todoistsync_v2_1` folder into your WHMCS `modules/addons/` directory so the path becomes:
+1. **Upload the module** — Copy the `todoistsync` folder into your WHMCS `modules/addons/` directory so the path becomes:
    ```
-   /path/to/whmcs/modules/addons/todoistsync_v2_1/
+   /path/to/whmcs/modules/addons/todoistsync/
    ```
 
 2. **Activate the addon** — In the WHMCS admin panel go to **Setup → Addon Modules**, find *Todoist Sync*, and click **Activate**. The three database tables are created automatically.
@@ -65,7 +65,7 @@ Created automatically on module activation:
 4. **Register the webhook in Todoist**
    In your Todoist developer settings create a new webhook pointing to:
    ```
-   https://yourdomain.com/modules/addons/todoistsync_v2_1/webhook.php
+   https://yourdomain.com/modules/addons/todoistsync/webhook.php
    ```
    Subscribe to at minimum the `item:completed` and `item:deleted` events. Set the secret to match the value you entered in step 3.
 
